@@ -7,23 +7,20 @@ use terminal::{Position, Terminal};
 mod view;
 use view::View;
 
+#[derive(Default)]
 pub struct Editor {
     should_quit: bool,
     is_welcome_screen: bool,
     cursor_position: Position,
+    view: View,
 }
 
 impl Editor {
-    pub const fn default() -> Self {
-        Self {
-            should_quit: false,
-            is_welcome_screen: true,
-            cursor_position: Position { x: 0, y: 0 },
-        }
-    }
-
-    pub fn run(&mut self) {
+    pub fn run(&mut self, file_path: Option<&str>) {
         Terminal::initialize().unwrap();
+        if let Some(file_path) = file_path {
+            self.view.load(file_path).unwrap();
+        }
         let result = self.repl();
         Terminal::terminate().unwrap();
         result.unwrap();
@@ -108,7 +105,7 @@ impl Editor {
             Terminal::clear_screen()?;
             Terminal::print("Goodbye \r\n")?;
         } else {
-            View::render()?;
+            self.view.render()?;
             Terminal::move_cusor_to(Position {
                 x: self.cursor_position.x,
                 y: self.cursor_position.y,

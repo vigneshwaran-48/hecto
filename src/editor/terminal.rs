@@ -8,7 +8,7 @@ use crossterm::{
     terminal::{Clear, disable_raw_mode, enable_raw_mode, size},
 };
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Default)]
 pub struct Position {
     pub x: usize,
     pub y: usize,

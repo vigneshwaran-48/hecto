@@ -1,23 +1,33 @@
 use std::io::Error;
 
+use buffer::Buffer;
+
 use super::terminal::{Size, Terminal};
+
+mod buffer;
 
 const NAME: &str = env!("CARGO_PKG_NAME");
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-pub struct View;
+#[derive(Default)]
+pub struct View {
+    buffer: Buffer,
+}
 
 impl View {
-    pub fn render() -> Result<(), Error> {
+    pub fn render(&self) -> Result<(), Error> {
         let Size { height, .. } = Terminal::size()?;
-        Terminal::clear_line()?;
-        Terminal::print("Hello, World!\r\n")?;
-        for current_row in 1..height {
+        for current_row in 0..height {
             Terminal::clear_line()?;
+            if let Some(element) = self.buffer.lines.get(current_row) {
+                Terminal::print(element)?;
+                Terminal::print("\r\n")?;
+                continue;
+            }
             // we allow this since we don't care if our welcome message is put _exactly_ in the middle.
             // it's allowed to be a bit up or down
             #[allow(clippy::integer_division)]
-            if current_row == height / 3 {
+            if self.buffer.is_empty() && current_row == height / 3 {
                 Self::draw_welcome_message()?;
             } else {
                 Self::draw_empty_row()?;
@@ -26,6 +36,12 @@ impl View {
                 Terminal::print("\r\n")?;
             }
         }
+        Ok(())
+    }
+
+    pub fn load(&mut self, file_path: &str) -> Result<(), Error> {
+        let content = std::fs::read_to_string(file_path)?;
+        self.buffer.lines = content.lines().map(String::from).collect();
         Ok(())
     }
     fn draw_welcome_message() -> Result<(), Error> {
