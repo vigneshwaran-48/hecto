@@ -6,11 +6,15 @@ use terminal::{Position, Size, Terminal};
 
 pub struct Editor {
     should_quit: bool,
+    is_welcome_screen: bool,
 }
 
 impl Editor {
     pub const fn default() -> Self {
-        Self { should_quit: false }
+        Self {
+            should_quit: false,
+            is_welcome_screen: true,
+        }
     }
 
     pub fn run(&mut self) {
@@ -42,19 +46,50 @@ impl Editor {
                 _ => (),
             }
         }
+        if self.is_welcome_screen {
+            self.is_welcome_screen = false;
+        }
     }
 
     fn refresh_screen(&self) -> Result<(), std::io::Error> {
         Terminal::hide_cursor()?;
         if self.should_quit {
             Terminal::clear_screen()?;
+            Terminal::move_cusor_to(Position { x: 0, y: 0 })?; // After the welcome message the
+            // width is not cleared properly. This will reset the width.
             Terminal::print("Goodbye \r\n")?;
+        } else if self.is_welcome_screen {
+            Self::draw_rows()?;
+            Self::display_welcome_message()?;
         } else {
+            Terminal::move_cusor_to(Position { x: 0, y: 0 })?; // After the welcome message the
+            // width is not cleared properly. This will reset the width.
             Self::draw_rows()?;
             Terminal::move_cusor_to(Position { x: 0, y: 0 })?;
         }
         Terminal::show_cursor()?;
         Terminal::execute()?;
+        Ok(())
+    }
+
+    fn display_welcome_message() -> Result<(), std::io::Error> {
+        let size = Terminal::size()?;
+
+        let message = "Hecto";
+
+        let y = size.height / 3;
+        let x = (size.width - (message.len() as u16)) / 2;
+
+        Terminal::move_cusor_to(Position { x, y })?;
+        Terminal::print(message)?;
+
+        let message = "1.0";
+        let y = y + 1;
+
+        let x = (size.width - (message.len() as u16)) / 2;
+
+        Terminal::move_cusor_to(Position { x, y })?;
+        Terminal::print(message)?;
         Ok(())
     }
 
