@@ -1,10 +1,8 @@
-use std::io::{Write, stdout};
-
 use crossterm::event::{Event, KeyEvent, KeyModifiers};
 use crossterm::event::{Event::Key, KeyCode::Char, read};
 
 mod terminal;
-use terminal::Terminal;
+use terminal::{Position, Size, Terminal};
 
 pub struct Editor {
     should_quit: bool,
@@ -53,15 +51,17 @@ impl Editor {
             Terminal::print("Goodbye \r\n")?;
         } else {
             Self::draw_rows()?;
-            Terminal::move_cusor_to(0, 0)?;
+            Terminal::move_cusor_to(Position { x: 0, y: 0 })?;
         }
         Terminal::show_cursor()?;
-        stdout().flush()
+        Terminal::execute()?;
+        Ok(())
     }
 
     fn draw_rows() -> Result<(), std::io::Error> {
-        let height = Terminal::size()?.1;
+        let Size { height, .. } = Terminal::size()?;
         for current_height in 0..height {
+            Terminal::clear_line()?;
             Terminal::print("~")?;
             if current_height + 1 < height {
                 Terminal::print("\r\n")?;
