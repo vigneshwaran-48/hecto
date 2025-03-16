@@ -1,3 +1,5 @@
+use std::io::{Write, stdout};
+
 use crossterm::event::{Event, KeyEvent, KeyModifiers};
 use crossterm::event::{Event::Key, KeyCode::Char, read};
 
@@ -45,22 +47,24 @@ impl Editor {
     }
 
     fn refresh_screen(&self) -> Result<(), std::io::Error> {
+        Terminal::hide_cursor()?;
         if self.should_quit {
             Terminal::clear_screen()?;
-            print!("Goodbye \r\n");
+            Terminal::print("Goodbye \r\n")?;
         } else {
             Self::draw_rows()?;
             Terminal::move_cusor_to(0, 0)?;
         }
-        Ok(())
+        Terminal::show_cursor()?;
+        stdout().flush()
     }
 
     fn draw_rows() -> Result<(), std::io::Error> {
         let height = Terminal::size()?.1;
         for current_height in 0..height {
-            print!("~");
+            Terminal::print("~")?;
             if current_height + 1 < height {
-                print!("\r\n");
+                Terminal::print("\r\n")?;
             }
         }
         Ok(())
