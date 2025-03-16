@@ -1,6 +1,6 @@
 use std::env;
 
-use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use crossterm::event::{Event::Key, KeyCode::Char, read};
 
 mod terminal;
@@ -45,7 +45,10 @@ impl Editor {
 
     fn evaluate_event(&mut self, event: &Event) {
         if let Key(KeyEvent {
-            code, modifiers, ..
+            code,
+            modifiers,
+            kind: KeyEventKind::Press, // For windows
+            ..
         }) = event
         {
             match code {
@@ -69,13 +72,28 @@ impl Editor {
                     }
                 }
                 KeyCode::Up => {
+                    self.cursor_position.y = self.cursor_position.y.saturating_sub(1);
+                    // Not interested in providing support for folding in vertical movement.
+                }
+                KeyCode::Down => {
                     let terminal_pos = Terminal::size().unwrap();
-                    if self.cursor_position.x.saturating_add(1) < terminal_pos.width {
-                        self.cursor_position.x = self.cursor_position.x.saturating_add(1);
-                    } else {
-                        self.cursor_position.x = 0;
+                    if self.cursor_position.y.saturating_add(1) < terminal_pos.height {
                         self.cursor_position.y = self.cursor_position.y.saturating_add(1);
                     }
+                    // Not interested in providing support for folding in vertical movement.
+                }
+                KeyCode::End => {
+                    let terminal_pos = Terminal::size().unwrap();
+                    self.cursor_position.x = terminal_pos.width;
+                }
+                KeyCode::Home => {
+                    self.cursor_position.x = 0;
+                }
+                KeyCode::PageUp => {
+                    self.cursor_position.y = 0;
+                }
+                KeyCode::PageDown => {
+                    self.cursor_position.y = Terminal::size().unwrap().height;
                 }
                 _ => (),
             }
@@ -86,13 +104,17 @@ impl Editor {
     }
 
     fn refresh_screen(&self) -> Result<(), std::io::Error> {
+        Terminal::move_cusor_to(Position { x: 0, y: 0 })?;
         Terminal::hide_cursor()?;
         if self.should_quit {
             Terminal::clear_screen()?;
             Terminal::print("Goodbye \r\n")?;
         } else {
             Self::draw_rows()?;
-            Terminal::move_cusor_to(Position { x: 0, y: 0 })?;
+            Terminal::move_cusor_to(Position {
+                x: self.cursor_position.x,
+                y: self.cursor_position.y,
+            })?;
         }
         Terminal::show_cursor()?;
         Terminal::execute()?;
