@@ -16,7 +16,7 @@ pub struct View {
 
 impl View {
     pub fn render(&self) -> Result<(), Error> {
-        if self.buffer.lines.is_empty() {
+        if self.buffer.is_empty() {
             Self::render_welcome_screen()?;
         } else {
             self.render_buffer()?;
@@ -30,9 +30,11 @@ impl View {
             Terminal::clear_line()?;
             if let Some(row) = self.buffer.lines.get(current_row) {
                 Terminal::print(row)?;
-                Terminal::print("\r\n")?;
             } else {
                 Self::draw_empty_row()?;
+            }
+            if current_row.saturating_add(1) < height {
+                Terminal::print("\r\n")?;
             }
         }
         Ok(())
