@@ -1,19 +1,17 @@
-use std::env;
-
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use crossterm::event::{Event::Key, KeyCode::Char, read};
 
 mod terminal;
-use terminal::{Position, Size, Terminal};
+use terminal::{Position, Terminal};
+
+mod view;
+use view::View;
 
 pub struct Editor {
     should_quit: bool,
     is_welcome_screen: bool,
     cursor_position: Position,
 }
-
-const NAME: &str = env!("CARGO_PKG_NAME");
-const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 impl Editor {
     pub const fn default() -> Self {
@@ -110,7 +108,7 @@ impl Editor {
             Terminal::clear_screen()?;
             Terminal::print("Goodbye \r\n")?;
         } else {
-            Self::draw_rows()?;
+            View::render()?;
             Terminal::move_cusor_to(Position {
                 x: self.cursor_position.x,
                 y: self.cursor_position.y,
@@ -118,46 +116,6 @@ impl Editor {
         }
         Terminal::show_cursor()?;
         Terminal::execute()?;
-        Ok(())
-    }
-
-    fn draw_rows() -> Result<(), std::io::Error> {
-        let Size { height, .. } = Terminal::size()?;
-        for current_height in 0..height {
-            Terminal::clear_line()?;
-            // we allow this since we don't care if our welcome message is put _exactly_ in the middle.
-            // it's allowed to be a bit up or down 1Has a conversation. Original line has a conversation.
-            #[allow(clippy::integer_division)]
-            if current_height == height / 3 {
-                Self::draw_welcome_message()?;
-            } else {
-                Self::draw_empty_row()?;
-            }
-            if current_height.saturating_add(1) < height {
-                Terminal::print("\r\n")?;
-            }
-        }
-        Ok(())
-    }
-
-    fn draw_empty_row() -> Result<(), std::io::Error> {
-        Terminal::print("~")?;
-        Ok(())
-    }
-
-    fn draw_welcome_message() -> Result<(), std::io::Error> {
-        let mut welcome_message = format!("{NAME} editor -- version {VERSION}");
-        let width = Terminal::size()?.width;
-        let len = welcome_message.len();
-        // we allow this since we don't care if our welcome message is put _exactly_ in the middle.
-        // it's allowed to be a bit to the left or right.
-        #[allow(clippy::integer_division)]
-        let padding = (width.saturating_sub(len)) / 2;
-
-        let spaces = " ".repeat(padding.saturating_sub(1));
-        welcome_message = format!("~{spaces}{welcome_message}");
-        welcome_message.truncate(width);
-        Terminal::print(&welcome_message)?;
         Ok(())
     }
 }
