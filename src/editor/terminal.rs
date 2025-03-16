@@ -1,6 +1,7 @@
 use std::io::{Write, stdout};
 
 use crossterm::{
+    Command,
     cursor::{Hide, MoveTo, Show},
     queue,
     style::Print,
@@ -9,14 +10,14 @@ use crossterm::{
 
 #[derive(Copy, Clone)]
 pub struct Position {
-    pub x: u16,
-    pub y: u16,
+    pub x: usize,
+    pub y: usize,
 }
 
 #[derive(Copy, Clone)]
 pub struct Size {
-    pub height: u16,
-    pub width: u16,
+    pub height: usize,
+    pub width: usize,
 }
 
 pub struct Terminal;
@@ -34,35 +35,44 @@ impl Terminal {
         Ok(())
     }
     pub fn clear_screen() -> Result<(), std::io::Error> {
-        queue!(stdout(), Clear(crossterm::terminal::ClearType::All))?;
+        Self::queue_command(Clear(crossterm::terminal::ClearType::All))?;
         Ok(())
     }
     pub fn clear_line() -> Result<(), std::io::Error> {
-        queue!(stdout(), Clear(crossterm::terminal::ClearType::CurrentLine))?;
+        Self::queue_command(Clear(crossterm::terminal::ClearType::CurrentLine))?;
         Ok(())
     }
     pub fn move_cusor_to(position: Position) -> Result<(), std::io::Error> {
-        queue!(stdout(), MoveTo(position.x, position.y))?;
+        #[allow(clippy::as_conversions, clippy::cast_possible_truncation)]
+        Self::queue_command(MoveTo(position.x as u16, position.y as u16))?;
         Ok(())
     }
     pub fn size() -> Result<Size, std::io::Error> {
         let (width, height) = size()?;
+        #[allow(clippy::as_conversions)]
+        let width = width as usize;
+        #[allow(clippy::as_conversions)]
+        let height = height as usize;
         Ok(Size { height, width })
     }
     pub fn hide_cursor() -> Result<(), std::io::Error> {
-        queue!(stdout(), Hide)?;
+        Self::queue_command(Hide)?;
         Ok(())
     }
     pub fn show_cursor() -> Result<(), std::io::Error> {
-        queue!(stdout(), Show)?;
+        Self::queue_command(Show)?;
         Ok(())
     }
     pub fn print(text: &str) -> Result<(), std::io::Error> {
-        queue!(stdout(), Print(text))?;
+        Self::queue_command(Print(text))?;
         Ok(())
     }
     pub fn execute() -> Result<(), std::io::Error> {
         stdout().flush()?;
+        Ok(())
+    }
+    pub fn queue_command<T: Command>(command: T) -> Result<(), std::io::Error> {
+        queue!(stdout(), command)?;
         Ok(())
     }
 }

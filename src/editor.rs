@@ -1,4 +1,6 @@
-use crossterm::event::{Event, KeyEvent, KeyModifiers};
+use std::env;
+
+use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
 use crossterm::event::{Event::Key, KeyCode::Char, read};
 
 mod terminal;
@@ -7,13 +9,18 @@ use terminal::{Position, Size, Terminal};
 pub struct Editor {
     should_quit: bool,
     is_welcome_screen: bool,
+    cursor_position: Position,
 }
+
+const NAME: &str = env!("CARGO_PKG_NAME");
+const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 impl Editor {
     pub const fn default() -> Self {
         Self {
             should_quit: false,
             is_welcome_screen: true,
+            cursor_position: Position { x: 0, y: 0 },
         }
     }
 
@@ -43,6 +50,33 @@ impl Editor {
         {
             match code {
                 Char('q') if *modifiers == KeyModifiers::CONTROL => self.should_quit = true,
+                KeyCode::Left => {
+                    let terminal_pos = Terminal::size().unwrap();
+                    if self.cursor_position.x.saturating_sub(1) > 0 {
+                        self.cursor_position.x = self.cursor_position.x.saturating_sub(1);
+                    } else {
+                        self.cursor_position.x = terminal_pos.width;
+                        self.cursor_position.y = self.cursor_position.y.saturating_sub(1);
+                    }
+                }
+                KeyCode::Right => {
+                    let terminal_pos = Terminal::size().unwrap();
+                    if self.cursor_position.x.saturating_add(1) < terminal_pos.width {
+                        self.cursor_position.x = self.cursor_position.x.saturating_add(1);
+                    } else {
+                        self.cursor_position.x = 0;
+                        self.cursor_position.y = self.cursor_position.y.saturating_add(1);
+                    }
+                }
+                KeyCode::Up => {
+                    let terminal_pos = Terminal::size().unwrap();
+                    if self.cursor_position.x.saturating_add(1) < terminal_pos.width {
+                        self.cursor_position.x = self.cursor_position.x.saturating_add(1);
+                    } else {
+                        self.cursor_position.x = 0;
+                        self.cursor_position.y = self.cursor_position.y.saturating_add(1);
+                    }
+                }
                 _ => (),
             }
         }
@@ -55,15 +89,8 @@ impl Editor {
         Terminal::hide_cursor()?;
         if self.should_quit {
             Terminal::clear_screen()?;
-            Terminal::move_cusor_to(Position { x: 0, y: 0 })?; // After the welcome message the
-            // width is not cleared properly. This will reset the width.
             Terminal::print("Goodbye \r\n")?;
-        } else if self.is_welcome_screen {
-            Self::draw_rows()?;
-            Self::display_welcome_message()?;
         } else {
-            Terminal::move_cusor_to(Position { x: 0, y: 0 })?; // After the welcome message the
-            // width is not cleared properly. This will reset the width.
             Self::draw_rows()?;
             Terminal::move_cusor_to(Position { x: 0, y: 0 })?;
         }
@@ -72,36 +99,43 @@ impl Editor {
         Ok(())
     }
 
-    fn display_welcome_message() -> Result<(), std::io::Error> {
-        let size = Terminal::size()?;
-
-        let message = "Hecto";
-
-        let y = size.height / 3;
-        let x = (size.width - (message.len() as u16)) / 2;
-
-        Terminal::move_cusor_to(Position { x, y })?;
-        Terminal::print(message)?;
-
-        let message = "1.0";
-        let y = y + 1;
-
-        let x = (size.width - (message.len() as u16)) / 2;
-
-        Terminal::move_cusor_to(Position { x, y })?;
-        Terminal::print(message)?;
-        Ok(())
-    }
-
     fn draw_rows() -> Result<(), std::io::Error> {
         let Size { height, .. } = Terminal::size()?;
         for current_height in 0..height {
             Terminal::clear_line()?;
-            Terminal::print("~")?;
-            if current_height + 1 < height {
+            // we allow this since we don't care if our welcome message is put _exactly_ in the middle.
+            // it's allowed to be a bit up or down 1Has a conversation. Original line has a conversation.
+            #[allow(clippy::integer_division)]
+            if current_height == height / 3 {
+                Self::draw_welcome_message()?;
+            } else {
+                Self::draw_empty_row()?;
+            }
+            if current_height.saturating_add(1) < height {
                 Terminal::print("\r\n")?;
             }
         }
+        Ok(())
+    }
+
+    fn draw_empty_row() -> Result<(), std::io::Error> {
+        Terminal::print("~")?;
+        Ok(())
+    }
+
+    fn draw_welcome_message() -> Result<(), std::io::Error> {
+        let mut welcome_message = format!("{NAME} editor -- version {VERSION}");
+        let width = Terminal::size()?.width;
+        let len = welcome_message.len();
+        // we allow this since we don't care if our welcome message is put _exactly_ in the middle.
+        // it's allowed to be a bit to the left or right.
+        #[allow(clippy::integer_division)]
+        let padding = (width.saturating_sub(len)) / 2;
+
+        let spaces = " ".repeat(padding.saturating_sub(1));
+        welcome_message = format!("~{spaces}{welcome_message}");
+        welcome_message.truncate(width);
+        Terminal::print(&welcome_message)?;
         Ok(())
     }
 }
